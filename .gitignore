@@ -4,5 +4,6 @@ dist/
 uploads/*
 !uploads/.gitkeep
 *.log
+*.tsbuildinfo
 .DS_Store
 postgres_data/
