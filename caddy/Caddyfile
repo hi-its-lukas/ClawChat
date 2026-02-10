@@ -1,0 +1,13 @@
+# ClawChat Caddy reverse proxy configuration
+# Uncomment and modify for production HTTPS
+
+# your-domain.com {
+#     reverse_proxy app:3000
+#     encode gzip
+# }
+
+# For local development without a domain:
+:80 {
+    reverse_proxy app:3000
+    encode gzip
+}
