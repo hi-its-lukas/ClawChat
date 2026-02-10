@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: clawchat
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://clawchat:${DB_PASSWORD}@db:5432/clawchat
+      - JWT_SECRET=${JWT_SECRET}
+      - BOT_API_KEY=${BOT_API_KEY}
+      - UPLOAD_DIR=/app/uploads
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - clawchat-net
+
+  db:
+    image: postgres:15-alpine
+    platform: linux/arm64
+    container_name: clawchat-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=clawchat
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=clawchat
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clawchat"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - clawchat-net
+
+volumes:
+  postgres_data:
+
+networks:
+  clawchat-net:
+    driver: bridge
