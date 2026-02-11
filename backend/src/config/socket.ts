@@ -7,6 +7,13 @@ interface AuthSocket extends Socket {
   user?: AuthUser;
 }
 
+// Track online users: userId -> Set of socketIds
+const onlineUsers = new Map<string, Set<string>>();
+
+export function getOnlineUserIds(): string[] {
+  return Array.from(onlineUsers.keys());
+}
+
 export function setupSocket(httpServer: HttpServer): Server {
   const io = new Server(httpServer, {
     cors: {
@@ -32,8 +39,6 @@ export function setupSocket(httpServer: HttpServer): Server {
     }
 
     if (apiKey) {
-      // Bot authentication via API key handled separately
-      // For simplicity, we verify the API key asynchronously
       verifyBotApiKey(apiKey as string)
         .then((user) => {
           if (user) {
@@ -52,33 +57,37 @@ export function setupSocket(httpServer: HttpServer): Server {
 
   io.on('connection', (socket: AuthSocket) => {
     const user = socket.user!;
-    console.log(`User connected: ${user.username} (${user.id})`);
+
+    // Track online status
+    if (!onlineUsers.has(user.id)) {
+      onlineUsers.set(user.id, new Set());
+    }
+    onlineUsers.get(user.id)!.add(socket.id);
+
+    // Broadcast online status to all
+    io.emit('user_online', { userId: user.id, username: user.username });
+    // Send current online list to this client
+    socket.emit('online_users', getOnlineUserIds());
 
     // Update user's last_seen
     query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.id]).catch(console.error);
 
-    // Join channel room
     socket.on('join_channel', (data: { channelId: string }) => {
       socket.join(`channel:${data.channelId}`);
-      console.log(`${user.username} joined channel:${data.channelId}`);
     });
 
-    // Leave channel room
     socket.on('leave_channel', (data: { channelId: string }) => {
       socket.leave(`channel:${data.channelId}`);
     });
 
-    // Join thread room
     socket.on('join_thread', (data: { threadId: string }) => {
       socket.join(`thread:${data.threadId}`);
     });
 
-    // Leave thread room
     socket.on('leave_thread', (data: { threadId: string }) => {
       socket.leave(`thread:${data.threadId}`);
     });
 
-    // Typing indicator
     socket.on('typing', (data: { channelId: string; threadId?: string }) => {
       const target = data.threadId ? `thread:${data.threadId}` : `channel:${data.channelId}`;
       socket.to(target).emit('user_typing', {
@@ -89,8 +98,16 @@ export function setupSocket(httpServer: HttpServer): Server {
     });
 
     socket.on('disconnect', () => {
-      console.log(`User disconnected: ${user.username}`);
       query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.id]).catch(console.error);
+
+      const sockets = onlineUsers.get(user.id);
+      if (sockets) {
+        sockets.delete(socket.id);
+        if (sockets.size === 0) {
+          onlineUsers.delete(user.id);
+          io.emit('user_offline', { userId: user.id });
+        }
+      }
     });
   });
 

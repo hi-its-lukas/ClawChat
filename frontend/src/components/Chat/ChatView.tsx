@@ -3,6 +3,7 @@ import { useMessages } from '../../hooks/useMessages';
 import { useChannels } from '../../contexts/ChannelContext';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
+import { TypingIndicator } from './TypingIndicator';
 
 interface ChatViewProps {
   onThreadClick: (messageId: string) => void;
@@ -35,9 +36,10 @@ export function ChatView({ onThreadClick }: ChatViewProps) {
         onLoadMore={loadMore}
         onThreadClick={onThreadClick}
       />
+      <TypingIndicator channelId={currentChannel.id} />
       <MessageInput
         channelId={currentChannel.id}
-        onSend={(content) => sendMessage(content).then(() => {})}
+        onSend={(content) => sendMessage(content)}
         placeholder={`Message #${currentChannel.name}`}
       />
     </div>

@@ -20,6 +20,23 @@ export interface Channel {
   members?: User[];
 }
 
+export interface Reaction {
+  emoji: string;
+  count: number;
+  users: { id: string; username: string }[];
+  me: boolean;
+}
+
+export interface SearchResult {
+  id: string;
+  channel_id: string;
+  content: string;
+  created_at: string;
+  author: User;
+  channel_name: string;
+  rank: number;
+}
+
 export interface Message {
   id: string;
   channel_id: string;
@@ -33,6 +50,8 @@ export interface Message {
   author: User;
   reply_count?: number;
   last_reply_at?: string;
+  attachments?: Attachment[];
+  reactions?: Reaction[];
 }
 
 export interface Thread {

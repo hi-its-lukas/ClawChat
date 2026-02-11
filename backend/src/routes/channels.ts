@@ -109,12 +109,14 @@ router.get('/:id/messages', authMiddleware, async (req: AuthRequest, res: Respon
       SELECT m.*,
         json_build_object('id', u.id, 'username', u.username, 'is_bot', u.is_bot, 'avatar_url', u.avatar_url) as author,
         (SELECT COUNT(*) FROM messages r WHERE r.thread_id = m.id) as reply_count,
-        (SELECT MAX(r2.created_at) FROM messages r2 WHERE r2.thread_id = m.id) as last_reply_at
+        (SELECT MAX(r2.created_at) FROM messages r2 WHERE r2.thread_id = m.id) as last_reply_at,
+        COALESCE((SELECT json_agg(json_build_object('id', a.id, 'filename', a.filename, 'file_path', a.file_path, 'file_size', a.file_size, 'mime_type', a.mime_type)) FROM attachments a WHERE a.message_id = m.id), '[]'::json) as attachments,
+        COALESCE((SELECT json_agg(sub) FROM (SELECT rx.emoji, COUNT(*)::int as count, json_agg(json_build_object('id', ru.id, 'username', ru.username)) as users, bool_or(rx.user_id = $2) as me FROM reactions rx JOIN users ru ON ru.id = rx.user_id WHERE rx.message_id = m.id GROUP BY rx.emoji ORDER BY MIN(rx.created_at)) sub), '[]'::json) as reactions
       FROM messages m
       LEFT JOIN users u ON u.id = m.author_id
       WHERE m.channel_id = $1 AND m.thread_id IS NULL
     `;
-    const params: unknown[] = [req.params.id];
+    const params: unknown[] = [req.params.id, req.user!.id];
 
     if (before) {
       sql += ` AND m.created_at < (SELECT created_at FROM messages WHERE id = $${params.length + 1})`;

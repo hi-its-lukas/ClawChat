@@ -19,6 +19,9 @@ import uploadRoutes from './routes/upload';
 import botSettingsRoutes from './routes/botSettings';
 import profileRoutes from './routes/profile';
 import adminRoutes from './routes/admin';
+import searchRoutes from './routes/search';
+import reactionRoutes from './routes/reactions';
+import dmRoutes from './routes/dm';
 import runMigrations from './migrations/run';
 import { seedDatabase } from './migrations/seed';
 
@@ -52,6 +55,9 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/channels', botSettingsRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/reactions', reactionRoutes);
+app.use('/api/dm', dmRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {

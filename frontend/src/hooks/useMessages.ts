@@ -30,7 +30,6 @@ export function useMessages(channelId: string | null) {
     }
   }, [channelId]);
 
-  // Initial fetch
   useEffect(() => {
     if (channelId) {
       setMessages([]);
@@ -39,7 +38,6 @@ export function useMessages(channelId: string | null) {
     }
   }, [channelId, fetchMessages]);
 
-  // Socket listeners
   useEffect(() => {
     if (!socket || !channelId) return;
 
@@ -64,15 +62,58 @@ export function useMessages(channelId: string | null) {
       setMessages((prev) => prev.filter((m) => m.id !== data.messageId));
     };
 
+    const handleReactionAdded = (data: { message_id: string; emoji: string; user: { id: string; username: string } }) => {
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== data.message_id) return m;
+          const reactions = [...(m.reactions || [])];
+          const existing = reactions.find((r) => r.emoji === data.emoji);
+          if (existing) {
+            if (existing.users.some((u) => u.id === data.user.id)) return m;
+            return {
+              ...m,
+              reactions: reactions.map((r) =>
+                r.emoji === data.emoji
+                  ? { ...r, count: r.count + 1, users: [...r.users, data.user] }
+                  : r
+              ),
+            };
+          }
+          return { ...m, reactions: [...reactions, { emoji: data.emoji, count: 1, users: [data.user], me: false }] };
+        })
+      );
+    };
+
+    const handleReactionRemoved = (data: { message_id: string; emoji: string; user_id: string }) => {
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== data.message_id) return m;
+          const reactions = (m.reactions || [])
+            .map((r) => {
+              if (r.emoji !== data.emoji) return r;
+              const newUsers = r.users.filter((u) => u.id !== data.user_id);
+              if (newUsers.length === 0) return null;
+              return { ...r, count: newUsers.length, users: newUsers };
+            })
+            .filter(Boolean) as typeof m.reactions;
+          return { ...m, reactions };
+        })
+      );
+    };
+
     socket.on('new_message', handleNewMessage);
     socket.on('message_edited', handleMessageEdited);
     socket.on('message_deleted', handleMessageDeleted);
+    socket.on('reaction_added', handleReactionAdded);
+    socket.on('reaction_removed', handleReactionRemoved);
 
     return () => {
       socket.emit('leave_channel', { channelId });
       socket.off('new_message', handleNewMessage);
       socket.off('message_edited', handleMessageEdited);
       socket.off('message_deleted', handleMessageDeleted);
+      socket.off('reaction_added', handleReactionAdded);
+      socket.off('reaction_removed', handleReactionRemoved);
     };
   }, [socket, channelId]);
 

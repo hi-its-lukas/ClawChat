@@ -97,6 +97,16 @@ CREATE TABLE IF NOT EXISTS channel_bot_settings (
     UNIQUE(channel_id, bot_id)
 );
 
+-- Reactions
+CREATE TABLE IF NOT EXISTS reactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    emoji VARCHAR(32) NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(message_id, user_id, emoji)
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_channel_bot_settings_channel ON channel_bot_settings(channel_id);
 CREATE INDEX IF NOT EXISTS idx_channel_bot_settings_bot ON channel_bot_settings(bot_id);
@@ -105,6 +115,8 @@ CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(thread_id, created_at
 CREATE INDEX IF NOT EXISTS idx_messages_author ON messages(author_id);
 CREATE INDEX IF NOT EXISTS idx_thread_read_user ON thread_read(user_id);
 CREATE INDEX IF NOT EXISTS idx_channel_members_user ON channel_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_reactions_message ON reactions(message_id);
+CREATE INDEX IF NOT EXISTS idx_messages_content_fts ON messages USING gin(to_tsvector('english', content));
 `;
 
 async function runMigrations() {
