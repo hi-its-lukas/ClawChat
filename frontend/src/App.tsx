@@ -7,6 +7,7 @@ import { Header } from './components/Layout/Header';
 import { ChatView } from './components/Chat/ChatView';
 import { ThreadPanel } from './components/Thread/ThreadPanel';
 import { BotSettingsPanel } from './components/Chat/BotSettingsPanel';
+import { SettingsPanel } from './components/Settings/SettingsPanel';
 import { LoginPage } from './components/Auth/LoginPage';
 
 function AppLayout() {
@@ -14,16 +15,17 @@ function AppLayout() {
   const [activeThread, setActiveThread] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showBotSettings, setShowBotSettings] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const handleToggleBotSettings = () => {
     if (!showBotSettings) {
-      setActiveThread(null); // Close thread panel when opening bot settings
+      setActiveThread(null);
     }
     setShowBotSettings(!showBotSettings);
   };
 
   const handleThreadClick = (id: string) => {
-    setShowBotSettings(false); // Close bot settings when opening thread
+    setShowBotSettings(false);
     setActiveThread(id);
   };
 
@@ -40,7 +42,7 @@ function AppLayout() {
       <div className={`fixed inset-y-0 left-0 z-50 lg:static lg:z-auto transform transition-transform duration-200 ease-in-out ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       }`}>
-        <Sidebar />
+        <Sidebar onOpenSettings={() => setShowSettings(true)} />
       </div>
 
       {/* Main area */}
@@ -62,6 +64,9 @@ function AppLayout() {
           )}
         </div>
       </div>
+
+      {/* Settings overlay */}
+      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
     </div>
   );
 }

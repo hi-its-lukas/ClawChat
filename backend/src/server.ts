@@ -17,6 +17,8 @@ import threadRoutes from './routes/threads';
 import botRoutes from './routes/bot';
 import uploadRoutes from './routes/upload';
 import botSettingsRoutes from './routes/botSettings';
+import profileRoutes from './routes/profile';
+import adminRoutes from './routes/admin';
 import runMigrations from './migrations/run';
 import { seedDatabase } from './migrations/seed';
 
@@ -48,6 +50,8 @@ app.use('/api/threads', threadRoutes);
 app.use('/api/bot', botRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/channels', botSettingsRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
