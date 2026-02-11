@@ -218,6 +218,9 @@ router.delete('/users/:id', async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // Nullify references that don't have ON DELETE CASCADE/SET NULL
+    await query('UPDATE channels SET created_by = NULL WHERE created_by = $1', [req.params.id]);
+
     await query('DELETE FROM users WHERE id = $1', [req.params.id]);
 
     res.json({ success: true, deleted: targetUser.rows[0] });

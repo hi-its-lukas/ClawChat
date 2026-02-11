@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS channels (
     name VARCHAR(100) NOT NULL,
     description TEXT,
     type VARCHAR(20) DEFAULT 'public',
-    created_by UUID REFERENCES users(id),
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -117,6 +117,18 @@ CREATE INDEX IF NOT EXISTS idx_thread_read_user ON thread_read(user_id);
 CREATE INDEX IF NOT EXISTS idx_channel_members_user ON channel_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_reactions_message ON reactions(message_id);
 CREATE INDEX IF NOT EXISTS idx_messages_content_fts ON messages USING gin(to_tsvector('english', content));
+
+-- Fix channels.created_by FK for existing databases (allow user deletion)
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'channels_created_by_fkey' AND table_name = 'channels'
+  ) THEN
+    ALTER TABLE channels DROP CONSTRAINT channels_created_by_fkey;
+    ALTER TABLE channels ADD CONSTRAINT channels_created_by_fkey
+      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL;
+  END IF;
+END $$;
 `;
 
 async function runMigrations() {
