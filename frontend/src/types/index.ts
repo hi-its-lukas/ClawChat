@@ -20,6 +20,23 @@ export interface Channel {
   members?: User[];
 }
 
+export interface Reaction {
+  emoji: string;
+  count: number;
+  users: { id: string; username: string }[];
+  me: boolean;
+}
+
+export interface SearchResult {
+  id: string;
+  channel_id: string;
+  content: string;
+  created_at: string;
+  author: User;
+  channel_name: string;
+  rank: number;
+}
+
 export interface Message {
   id: string;
   channel_id: string;
@@ -33,6 +50,8 @@ export interface Message {
   author: User;
   reply_count?: number;
   last_reply_at?: string;
+  attachments?: Attachment[];
+  reactions?: Reaction[];
 }
 
 export interface Thread {
@@ -69,4 +88,20 @@ export interface AuthResponse {
 export interface TypingUser {
   id: string;
   username: string;
+}
+
+export interface ChannelBotSettings {
+  id: string;
+  channel_id: string;
+  bot_id: string;
+  response_mode: 'mention' | 'always' | 'muted';
+  system_prompt: string | null;
+  max_response_length: number;
+  allowed_users: string[] | null;
+  enable_threads: boolean;
+  enable_reactions: boolean;
+  enable_file_read: boolean;
+  created_at: string;
+  updated_at: string;
+  bot?: User;
 }

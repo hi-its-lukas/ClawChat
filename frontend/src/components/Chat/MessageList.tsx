@@ -15,7 +15,6 @@ export function MessageList({ messages, loading, hasMore, onLoadMore, onThreadCl
   const containerRef = useRef<HTMLDivElement>(null);
   const prevLengthRef = useRef(0);
 
-  // Auto-scroll to bottom on new messages
   useEffect(() => {
     if (messages.length > prevLengthRef.current) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -23,7 +22,6 @@ export function MessageList({ messages, loading, hasMore, onLoadMore, onThreadCl
     prevLengthRef.current = messages.length;
   }, [messages.length]);
 
-  // Scroll detection for loading more
   const handleScroll = () => {
     const container = containerRef.current;
     if (container && container.scrollTop < 100 && hasMore && !loading) {

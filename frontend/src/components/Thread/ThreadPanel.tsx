@@ -62,9 +62,7 @@ export function ThreadPanel({ threadId, onClose }: ThreadPanelProps) {
           />
         </>
       ) : (
-        <div className="flex-1 flex items-center justify-center text-slate-500">
-          Thread not found
-        </div>
+        <div className="flex-1 flex items-center justify-center text-slate-500">Thread not found</div>
       )}
     </div>
   );
