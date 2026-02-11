@@ -205,12 +205,22 @@ router.delete('/users/:id', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Cannot delete your own account' });
     }
 
-    const result = await query('DELETE FROM users WHERE id = $1 RETURNING id, username', [req.params.id]);
-    if (result.rows.length === 0) {
+    // Check if we're deleting an admin - ensure at least one admin remains
+    const targetUser = await query('SELECT id, username, role FROM users WHERE id = $1', [req.params.id]);
+    if (targetUser.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ success: true, deleted: result.rows[0] });
+    if (targetUser.rows[0].role === 'admin') {
+      const adminCount = await query("SELECT COUNT(*) as count FROM users WHERE role = 'admin'");
+      if (parseInt(adminCount.rows[0].count) <= 1) {
+        return res.status(400).json({ error: 'Cannot delete the last admin. Promote another user to admin first.' });
+      }
+    }
+
+    await query('DELETE FROM users WHERE id = $1', [req.params.id]);
+
+    res.json({ success: true, deleted: targetUser.rows[0] });
   } catch (err) {
     console.error('Delete user error:', err);
     res.status(500).json({ error: 'Failed to delete user' });

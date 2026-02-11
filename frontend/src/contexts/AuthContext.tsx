@@ -6,7 +6,6 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (username: string, password: string) => Promise<void>;
-  register: (username: string, password: string, email?: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
 }
@@ -36,14 +35,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('user', JSON.stringify(data.user));
   }, []);
 
-  const register = useCallback(async (username: string, password: string, email?: string) => {
-    const { data } = await api.post<AuthResponse>('/auth/register', { username, password, email });
-    setToken(data.token);
-    setUser(data.user);
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('user', JSON.stringify(data.user));
-  }, []);
-
   const logout = useCallback(() => {
     setToken(null);
     setUser(null);
@@ -52,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, token, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

@@ -3,11 +3,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../UI/Button';
 
 export function LoginPage() {
-  const { login, register } = useAuth();
-  const [isRegister, setIsRegister] = useState(false);
+  const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -17,11 +15,7 @@ export function LoginPage() {
     setLoading(true);
 
     try {
-      if (isRegister) {
-        await register(username, password, email || undefined);
-      } else {
-        await login(username, password);
-      }
+      await login(username, password);
     } catch (err: unknown) {
       const msg = err && typeof err === 'object' && 'response' in err
         ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
@@ -61,19 +55,6 @@ export function LoginPage() {
             />
           </div>
 
-          {isRegister && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-300 mb-1">Email (optional)</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-slate-700 text-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Enter email"
-              />
-            </div>
-          )}
-
           <div className="mb-6">
             <label className="block text-sm font-medium text-slate-300 mb-1">Password</label>
             <input
@@ -87,18 +68,11 @@ export function LoginPage() {
           </div>
 
           <Button type="submit" className="w-full" size="lg" disabled={loading}>
-            {loading ? 'Please wait...' : isRegister ? 'Create Account' : 'Sign In'}
+            {loading ? 'Please wait...' : 'Sign In'}
           </Button>
 
-          <p className="text-center text-sm text-slate-400 mt-4">
-            {isRegister ? 'Already have an account?' : "Don't have an account?"}{' '}
-            <button
-              type="button"
-              onClick={() => { setIsRegister(!isRegister); setError(''); }}
-              className="text-indigo-400 hover:text-indigo-300 transition-colors"
-            >
-              {isRegister ? 'Sign in' : 'Register'}
-            </button>
+          <p className="text-center text-xs text-slate-500 mt-4">
+            Contact your admin to get an account
           </p>
         </form>
       </div>
