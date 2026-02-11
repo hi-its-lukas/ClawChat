@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import { query } from '../config/database';
+import { query, getClient } from '../config/database';
 import { AuthRequest, authMiddleware } from '../middleware/auth';
 
 const router = Router();
@@ -218,15 +218,48 @@ router.delete('/users/:id', async (req: AuthRequest, res: Response) => {
       }
     }
 
-    // Nullify references that don't have ON DELETE CASCADE/SET NULL
-    await query('UPDATE channels SET created_by = NULL WHERE created_by = $1', [req.params.id]);
+    // Use a transaction and explicitly clean up ALL FK references
+    const client = await getClient();
+    try {
+      await client.query('BEGIN');
+      const userId = req.params.id;
 
-    await query('DELETE FROM users WHERE id = $1', [req.params.id]);
+      // Clean up all tables that reference users(id)
+      await client.query('DELETE FROM reactions WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM thread_read WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM channel_bot_settings WHERE bot_id = $1', [userId]);
+      await client.query('DELETE FROM channel_members WHERE user_id = $1', [userId]);
+      await client.query('UPDATE messages SET author_id = NULL WHERE author_id = $1', [userId]);
+      await client.query('UPDATE channels SET created_by = NULL WHERE created_by = $1', [userId]);
+
+      // Drop and recreate the FK constraint if it still has RESTRICT behavior
+      await client.query(`
+        DO $$ BEGIN
+          IF EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conname = 'channels_created_by_fkey' AND confdeltype = 'a'
+          ) THEN
+            ALTER TABLE channels DROP CONSTRAINT channels_created_by_fkey;
+            ALTER TABLE channels ADD CONSTRAINT channels_created_by_fkey
+              FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL;
+          END IF;
+        END $$;
+      `);
+
+      await client.query('DELETE FROM users WHERE id = $1', [userId]);
+      await client.query('COMMIT');
+    } catch (txErr) {
+      await client.query('ROLLBACK');
+      throw txErr;
+    } finally {
+      client.release();
+    }
 
     res.json({ success: true, deleted: targetUser.rows[0] });
   } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
     console.error('Delete user error:', err);
-    res.status(500).json({ error: 'Failed to delete user' });
+    res.status(500).json({ error: `Failed to delete user: ${msg}` });
   }
 });
 
