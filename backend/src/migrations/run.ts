@@ -118,16 +118,41 @@ CREATE INDEX IF NOT EXISTS idx_channel_members_user ON channel_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_reactions_message ON reactions(message_id);
 CREATE INDEX IF NOT EXISTS idx_messages_content_fts ON messages USING gin(to_tsvector('english', content));
 
--- Fix channels.created_by FK for existing databases (allow user deletion)
-DO $$ BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.table_constraints
-    WHERE constraint_name = 'channels_created_by_fkey' AND table_name = 'channels'
-  ) THEN
-    ALTER TABLE channels DROP CONSTRAINT channels_created_by_fkey;
-    ALTER TABLE channels ADD CONSTRAINT channels_created_by_fkey
-      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL;
-  END IF;
+-- Fix FK constraints for existing databases that might lack ON DELETE behavior.
+-- CREATE TABLE IF NOT EXISTS does not update constraints on existing tables.
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  -- Find all FK constraints referencing users(id) that use NO ACTION (restrict)
+  FOR r IN
+    SELECT con.conname, cl.relname as table_name
+    FROM pg_constraint con
+    JOIN pg_class cl ON con.conrelid = cl.oid
+    JOIN pg_class ref ON con.confrelid = ref.oid
+    WHERE ref.relname = 'users'
+      AND con.contype = 'f'
+      AND con.confdeltype = 'a'
+  LOOP
+    -- Determine correct ON DELETE behavior based on table
+    IF r.table_name IN ('channel_members', 'thread_read', 'channel_bot_settings', 'reactions') THEN
+      EXECUTE format('ALTER TABLE %I DROP CONSTRAINT %I', r.table_name, r.conname);
+      EXECUTE format('ALTER TABLE %I ADD CONSTRAINT %I FOREIGN KEY (%s) REFERENCES users(id) ON DELETE CASCADE',
+        r.table_name, r.conname,
+        CASE r.table_name
+          WHEN 'channel_bot_settings' THEN 'bot_id'
+          ELSE 'user_id'
+        END);
+    ELSIF r.table_name IN ('channels') THEN
+      EXECUTE format('ALTER TABLE %I DROP CONSTRAINT %I', r.table_name, r.conname);
+      EXECUTE format('ALTER TABLE %I ADD CONSTRAINT %I FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL',
+        r.table_name, r.conname);
+    ELSIF r.table_name IN ('messages') THEN
+      EXECUTE format('ALTER TABLE %I DROP CONSTRAINT %I', r.table_name, r.conname);
+      EXECUTE format('ALTER TABLE %I ADD CONSTRAINT %I FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL',
+        r.table_name, r.conname);
+    END IF;
+  END LOOP;
 END $$;
 `;
 
