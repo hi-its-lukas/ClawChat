@@ -70,3 +70,19 @@ export interface TypingUser {
   id: string;
   username: string;
 }
+
+export interface ChannelBotSettings {
+  id: string;
+  channel_id: string;
+  bot_id: string;
+  response_mode: 'mention' | 'always' | 'muted';
+  system_prompt: string | null;
+  max_response_length: number;
+  allowed_users: string[] | null;
+  enable_threads: boolean;
+  enable_reactions: boolean;
+  enable_file_read: boolean;
+  created_at: string;
+  updated_at: string;
+  bot?: User;
+}

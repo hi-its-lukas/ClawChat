@@ -75,5 +75,20 @@ export async function seedDatabase() {
     }
   }
 
+  // Seed default bot settings for all channels the bot is a member of
+  const botChannels = await query(
+    `SELECT cm.channel_id FROM channel_members cm WHERE cm.user_id = $1`,
+    [botId]
+  );
+  for (const row of botChannels.rows) {
+    await query(
+      `INSERT INTO channel_bot_settings (channel_id, bot_id, response_mode)
+       VALUES ($1, $2, 'mention')
+       ON CONFLICT (channel_id, bot_id) DO NOTHING`,
+      [row.channel_id, botId]
+    );
+  }
+  console.log('Default bot settings seeded.');
+
   console.log('Seeding completed.');
 }

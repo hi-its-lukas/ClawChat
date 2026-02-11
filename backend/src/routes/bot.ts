@@ -24,6 +24,110 @@ router.get('/channels', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// GET /api/bot/channels-with-settings - List channels with bot config
+router.get('/channels-with-settings', async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await query(
+      `SELECT c.id as channel_id, c.name as channel_name, c.description,
+        cbs.response_mode, cbs.system_prompt, cbs.max_response_length,
+        cbs.allowed_users, cbs.enable_threads, cbs.enable_reactions, cbs.enable_file_read
+       FROM channels c
+       INNER JOIN channel_members cm ON cm.channel_id = c.id
+       LEFT JOIN channel_bot_settings cbs ON cbs.channel_id = c.id AND cbs.bot_id = $1
+       WHERE cm.user_id = $1
+       ORDER BY c.name`,
+      [req.user!.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Bot channels-with-settings error:', err);
+    res.status(500).json({ error: 'Failed to list channels with settings' });
+  }
+});
+
+// POST /api/bot/should-respond - Check if bot should respond to a message
+router.post('/should-respond', async (req: AuthRequest, res: Response) => {
+  try {
+    const { channel_id, author_id, content } = req.body;
+
+    if (!channel_id || !content) {
+      return res.status(400).json({ error: 'channel_id and content are required' });
+    }
+
+    // Get bot settings for this channel
+    const settingsResult = await query(
+      'SELECT * FROM channel_bot_settings WHERE channel_id = $1 AND bot_id = $2',
+      [channel_id, req.user!.id]
+    );
+
+    const settings = settingsResult.rows[0];
+    const mentionPattern = /@(openclaw|bot|claw|niels)\b/gi;
+
+    // No settings = default to mention mode
+    if (!settings) {
+      const hasMention = mentionPattern.test(content);
+      return res.json({
+        should_respond: hasMention,
+        response_mode: 'mention',
+        reason: hasMention ? 'mention_detected' : 'no_mention',
+        settings: null,
+      });
+    }
+
+    // Muted mode
+    if (settings.response_mode === 'muted') {
+      return res.json({
+        should_respond: false,
+        response_mode: 'muted',
+        reason: 'muted_mode',
+        settings,
+      });
+    }
+
+    // Check allowed_users
+    if (settings.allowed_users && settings.allowed_users.length > 0 && author_id) {
+      if (!settings.allowed_users.includes(author_id)) {
+        return res.json({
+          should_respond: false,
+          response_mode: settings.response_mode,
+          reason: 'not_allowed_user',
+          settings,
+        });
+      }
+    }
+
+    // Always mode
+    if (settings.response_mode === 'always') {
+      if (author_id === req.user!.id) {
+        return res.json({
+          should_respond: false,
+          response_mode: 'always',
+          reason: 'own_message',
+          settings,
+        });
+      }
+      return res.json({
+        should_respond: true,
+        response_mode: 'always',
+        reason: 'always_mode',
+        settings,
+      });
+    }
+
+    // Mention mode (default)
+    const hasMention = mentionPattern.test(content);
+    return res.json({
+      should_respond: hasMention,
+      response_mode: 'mention',
+      reason: hasMention ? 'mention_detected' : 'no_mention',
+      settings,
+    });
+  } catch (err) {
+    console.error('Bot should-respond error:', err);
+    res.status(500).json({ error: 'Failed to check response' });
+  }
+});
+
 // POST /api/bot/messages - Bot sends a message
 router.post('/messages', async (req: AuthRequest, res: Response) => {
   try {
