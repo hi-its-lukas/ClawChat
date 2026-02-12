@@ -1,5 +1,5 @@
 # Stage 1: Backend build
-FROM --platform=linux/arm64 node:20-alpine AS backend-build
+FROM node:20-alpine AS backend-build
 WORKDIR /app/backend
 COPY backend/package*.json ./
 RUN npm ci
@@ -7,7 +7,7 @@ COPY backend/ ./
 RUN npm run build
 
 # Stage 2: Frontend build
-FROM --platform=linux/arm64 node:20-alpine AS frontend-build
+FROM node:20-alpine AS frontend-build
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci
@@ -15,7 +15,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # Stage 3: Production
-FROM --platform=linux/arm64 node:20-alpine AS production
+FROM node:20-alpine AS production
 WORKDIR /app
 
 # Install PostgreSQL client for health checks
